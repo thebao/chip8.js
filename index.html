@@ -1,0 +1,58 @@
+ <!DOCTYPE html>
+<html>
+  <head>
+    <link rel="stylesheet" href="bootstrap.css" />
+    <meta charset="UTF-8">
+    </head>
+    <body>
+        <div class="container">
+            <h1>Chip-8 emulator</h1>
+            <div class="row">
+                <div class="col-md-2 col-md-offset-5 text-center">
+                    <div id="step-button" class="btn btn-large btn-primary">
+                        Next instruction
+                    </div><br/>
+                    <small>(or press space)</small>
+                </div>
+            </div>
+            <hr/>
+            <div class="row">
+                <div class="col-sm-2">
+                    <h4>Current Instruction</h4>
+                    <h3>
+                    <code id="instruction"></code>
+                    </h3>
+                    <hr/>
+                    <h5>
+                        <small><strong>TYPE</strong></small>&nbsp;
+                        <code id="inst-type"></code>
+                    </h5>
+                    <hr/>
+                    <h4>Stack</h4>
+                    <ul id="history">
+                    </ul>
+
+                </div>
+                <div class="col-sm-2">
+                    <h4>Program counter</h4>
+                    <div id="counter"></div>
+                </div>
+                <div class="col-sm-2">
+                    <h4>Stack</h4>
+                    <ul id="stack"></ul>
+                </div>
+                <div class="col-sm-2">
+                    <h4>V registers</h4>
+                    <ul id="vregister"></ul>
+                </div>
+                <div class="col-sm-2">
+                    <h4>I register</h4>
+                    <ul id="iregister"></ul>
+                </div>
+            </div>
+        </div>
+
+        <script type="text/javascript" src="chip8.js">
+        </script>
+    </body>
+</html>
