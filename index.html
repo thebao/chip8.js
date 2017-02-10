@@ -6,7 +6,7 @@
     </head>
     <body>
         <div class="container">
-            <h1>Chip-8 emulator</h1>
+            <h1>Chip-8 emulator<small> (<span id="steps">0</span> steps)</small></h1>
             <div class="row">
                 <div class="col-md-2 col-md-offset-5 text-center">
                     <div id="step-button" class="btn btn-large btn-primary">
@@ -15,7 +15,7 @@
                     <small>(or press space)</small>
                 </div>
             </div>
-            <div class="row">
+            <div class="row hidden">
                 <pre id="memory"></pre>
             </div>
             <hr/>
@@ -28,7 +28,8 @@
                     <hr/>
                     <h5>
                         <small><strong>TYPE</strong></small>&nbsp;
-                        <code id="inst-type"></code>
+                        <code id="inst-type"></code><br>
+                        <small><p id="manual"></p></small>
                     </h5>
                     <hr/>
                     <h4>Stack</h4>

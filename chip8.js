@@ -1,4 +1,5 @@
 var memoryStart = 512;
+var steps = 0;
 
 var chip8 = function() {
     this.reset();   
@@ -7,6 +8,7 @@ var chip8 = function() {
 var myInstruction = document.querySelector('#instruction');
 var myMemory = document.querySelector('#memory');
 var myType = document.querySelector('#inst-type');
+var myManual = document.querySelector('#manual');
 var myCounter = document.querySelector('#counter');
 var myStack = document.querySelector('#stack');
 var myVRegister = document.querySelector('#vregister');
@@ -14,6 +16,7 @@ var myIRegister = document.querySelector('#iregister');
 var myHistory = document.querySelector('#history');
 
 var stepButton = document.querySelector('#step-button');
+var mySteps = document.querySelector('#steps');
 
 document.addEventListener('keyup', function(e){
     if(e.code == "Space"){
@@ -51,6 +54,10 @@ chip8.prototype.reset = function() {
 
     // Sound timer
     this.soundTimer = 0;
+
+    // for debugging purposes
+    this.template = "";
+    this.manual = "";
 }
 
 chip8.prototype.load = function(ROM) {
@@ -100,7 +107,8 @@ chip8.prototype.loadSprites = function() {
 chip8.prototype.runGui = function() {
     var opcode = (this.memory[this.pc] << 8 | this.memory[this.pc + 1]);
     myInstruction.innerHTML = opcode.toString(16);
-    myType.innerHTML = (opcode & 0xF000).toString(16);
+    myType.innerHTML = this.template;
+    myManual.innerHTML = this.manual;
     myCounter.innerHTML = this.pc;
     myStack.innerHTML = this.stack.map(function(i){
         return `<li>${i}</li>`;
@@ -118,18 +126,23 @@ chip8.prototype.runGui = function() {
         else
             return i.toString(16);
     }).join('\t');
+
+    mySteps.innerHTML = steps;
 }
 
 chip8.prototype.run = function() {
     console.log('running');
     var self = this;
+    if(self.delayTimer>0){
+        self.delayTimer--;
+    }
+    steps++;
     var opcode = (self.memory[self.pc] << 8 | self.memory[self.pc + 1]);
     var x = (opcode & 0x0F00) >> 8;
     var y = (opcode & 0x00F0) >> 4;
     var n = (opcode & 0x000F);
     var kk = (opcode & 0x00FF);
     var nnn = (opcode & 0x0FFF);
-    console.log('kk', kk);
     if(opcode == 0x00E0){
         console.log("CLS");
     }    
@@ -141,62 +154,104 @@ chip8.prototype.run = function() {
     console.log('test', ((opcode & 0xF000)>>12));   
     switch ((opcode & 0xF000)>>12){
         case 1:
-            console.log("jump to ", opcode & 0x0FFF);
-            self.pc = (opcode & 0x0FFF).toString(16);
+            self.template = "1nnn";
+            self.manual = "Jump to location nnn.";
+            self.pc = nnn;
             break;
         case 2:
+            self.template = "2nnn";
+            self.manual = "Call subroutine at nnn.";
             self.sp++;
             self.stack[self.sp] = self.pc;
-            self.pc = (opcode & 0x0FFF);
-            console.log("Calling ", (opcode & 0x0FFF).toString(16));
+            self.pc = nnn;
             break;
         case 3:
-            if (self.v[(opcode & 0x0F00)] == (opcode & 0x00FF).toString(16)){
+            self.template = "3xkk";
+            self.manual = "Skip next instruction if Vx = kk.";
+                console.log('bep');
+                console.log(self.v[x]);
+                console.log(kk);
+            if (self.v[x] == kk){
                 self.pc += 2;
             }
-            console.log("Skipping next; case 3000");
             break;
         case 4:
-            if (self.v[(opcode & 0x0F00)] =! (opcode & 0x00FF).toString(16)){
+            self.template = "4xkk";
+            self.manual = "Skip next instruction if Vx != kk.";
+            if (self.v[x] =! kk){
                 self.pc += 2;
             }
-            console.log("Skipping next; case 4000");
             break;
         case 5:
-            if (self.v[(opcode & 0x0F00)] == self.v[(opcode & 0x00F0).toString(16)]){
+            self.template = "5xy0";
+            self.manual = "Skip next instruction if Vx = Vy.";
+            if (self.v[x] == self.v[y]){
                 self.pc += 2;
             }
-            console.log("Skipping next; case 5000");
             break;
         case 6:
-            self.v[((opcode & 0x0F00) >> 8)] = (opcode & 0x00FF);
+            self.template = "6xkk";
+            self.manual = "Set Vx = kk.";
+            self.v[x] = kk;
             console.log('6');
             break;
         case 7:
-            console.log(opcode & 0x0F00)
-            console.log(self.v[(opcode & 0x0F00)])
-            console.log((opcode & 0x00FF))
-            self.v[(opcode & 0x0F00) >> 8] = self.v[(opcode & 0x0F00) >> 8] + (opcode & 0x00FF);
-            console.log('7');
+            self.template = "7xkk";
+            self.manual = "Set Vx = Vx + kk.";
+            self.v[x] = self.v[x] + kk;
             break;
         case 8:
-            console.log('case8')
-            console.log((opcode & 0x000F).toString(16));
+            switch (n){
+                case 0:
+                    console.log(n);
+                    break;
+                case 1: 
+                    console.log(n);
+                    break;
+                case 2: 
+                    console.log(n);
+                    break;
+                case 3: 
+                    console.log(n);
+                    break;
+                case 4: 
+                    console.log(n);
+                    break;
+                case 5: 
+                    console.log(n);
+                    break;
+                case 6: 
+                    console.log(n);
+                    break;
+                case 7: 
+                    console.log(n);
+                    break;
+                case 14: 
+                    console.log(n);
+                    break;
+            }
             break;
         case 9:
             console.log('Skip');
             break;
         case 10:
-            self.i = (opcode & 0x0FFF);
+            self.template = "Annn";
+            self.manual = "Set I = nnn.";
+            self.i = nnn;
             console.log('A');
             break;
         case 11:
             console.log('B');
             break;
         case 12:
+            self.template = "Cxkk";
+            self.manual = "Set I = nnn.";
+            console.log(Math.floor(Math.random()*255));
             console.log('C');
             break;
         case 13:
+            self.template = "Dxyn";
+            self.manual = "Display n-byte sprite starting at memory location I at (Vx, Vy), set VF = collision.";
             console.log('D');
             break;
         case 14:
@@ -204,14 +259,26 @@ chip8.prototype.run = function() {
             break;
         case 15:
             console.log('f');
-            console.log((opcode & 0x00FF));
-            switch ((opcode & 0x00FF)){
+            switch (kk){
+                case 0x07:
+                    self.template = "Fx07";
+                    self.manual = "Set Vx = delay timer value.";
+                    self.v[x] = self.delayTimer;
+                    break;
+                case 0x15:
+                    self.template = "Fx15";
+                    self.manual = "Set delay timer = Vx.";
+                    self.delayTimer = self.v[x];
+                    break;
                 case 0x29:
-                    console.log('sprite#', (opcode & 0x0F00) >> 8);
-                    self.i = self.v[(opcode & 0x0F00) >> 8]*5;
+                    self.template = "Fx29";
+                    self.manual = "Set I = location of sprite for digit Vx.";
+                    self.i = self.v[x]*5;
                     break;
                 case 0x33:
-                    var arr = (""+(self.v[(opcode & 0x0F00) >> 8])).split("").map(function(item){
+                    self.template = "Fx33";
+                    self.manual = "Store BCD representation of Vx in memory locations I, I+1, and I+2.";
+                    var arr = (""+(self.v[x])).split("").map(function(item){
                         return parseInt(item);
                     });
                     while(arr.length<3){
@@ -220,9 +287,11 @@ chip8.prototype.run = function() {
                     self.memory[self.i + 0] = arr[0];
                     self.memory[self.i + 1] = arr[1];
                     self.memory[self.i + 2] = arr[2];
-                    break;
+                    break; 
                 case 0x65:
-                    for(var i=0; i<(opcode & 0x0F00) >> 8;i++){
+                    self.template = "Fx65";
+                    self.manual = "Read registers V0 through Vx from memory starting at location I.";
+                    for(var i=0; i<=x;i++){
                         self.v[i] = self.memory[self.i + i];
                     }
                     break;
