@@ -1,8 +1,9 @@
 var memoryStart = 512;
 var steps = 0;
 var playing = false;
-var runSpeed = 50;
+var runSpeed = Math.floor(1000/60);
 var video = true;
+var videoScale = 5;
 
 var chip8 = function() {
     this.reset();   
@@ -26,7 +27,7 @@ var mySteps = document.querySelector('#steps');
 var canvas = document.querySelector('#video');
 var ctx = canvas.getContext('2d');
 ctx.fillStyle = "red";
-ctx.fillRect(0,0,64,32);
+ctx.fillRect(0,0,64*videoScale,32*videoScale);
 
 document.addEventListener('keyup', function(e){
     if(e.code == "Space"){
@@ -156,14 +157,14 @@ chip8.prototype.loadSprites = function() {
 
 chip8.prototype.runVideo = function() {
     ctx.fillStyle = "black";
-    ctx.fillRect(0,0,320,160);
+    ctx.fillRect(0,0,64*videoScale,32*videoScale);
     ctx.fillStyle = "white";
     for(var pixel = 0; pixel<this.gfx.length;pixel++){
         var x = pixel % 64;
         var y = Math.floor(pixel/64);
         if(this.gfx[pixel]==1){
             console.log(x,y);
-            ctx.fillRect(x*5,y*5,5,5);
+            ctx.fillRect(x*videoScale,y*videoScale,videoScale,videoScale);
         }
     }
     console.log(this.gfx);
@@ -327,12 +328,13 @@ chip8.prototype.run = function() {
                 for(var xline = 0; xline < 8; xline++){
                     if((pixel & (0x80 >> xline)) != 0)
                     {
-                        if(self.gfx[(x + xline + ((y + yline) * 64))] == 1){
+                        if(self.gfx[(self.v[x] + xline + ((self.v[y] + yline) * 64))] == 1){
                             self.v[0xF] = 1;      
-                            self.gfx[x + xline + ((y + yline) * 64)] = 0;                           
+                            self.gfx[self.v[x] + xline + ((self.v[y] + yline) * 64)] = 0;                           
                         }
                         else {
-                            self.gfx[x + xline + ((y + yline) * 64)] = 1;       
+                            self.gfx[self.v[x] + xline + ((self.v[y] + yline) * 64)] = 1;
+                            console.log('draw', x + xline , y + yline);
                         }
                     }
                 }
