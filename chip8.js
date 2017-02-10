@@ -1,9 +1,30 @@
 var memoryStart = 512;
 var steps = 0;
 var playing = false;
-var runSpeed = Math.floor(1000/60);
+var runSpeed = Math.floor(1000/500);
 var video = true;
 var videoScale = 5;
+var debug = false;
+
+var keyCodes = {
+    0: 96,
+    1: 97,
+    2: 98,
+    3: 99,
+    4: 100,
+    5: 101,
+    6: 102,
+    7: 103,
+    8: 104,
+    9: 105,
+    a: 65,
+    b: 66,
+    c: 67,
+    d: 68,
+    e: 69,
+    f: 70
+
+}
 
 var chip8 = function() {
     this.reset();   
@@ -24,6 +45,8 @@ var stepButton = document.querySelector('#step-button');
 var playButton = document.querySelector('#play-button');
 var mySteps = document.querySelector('#steps');
 
+var audio = document.querySelector('#beep');
+
 var canvas = document.querySelector('#video');
 var ctx = canvas.getContext('2d');
 ctx.fillStyle = "red";
@@ -40,7 +63,13 @@ stepButton.addEventListener('click', function(){
 
 var keyMap = [];
 window.onkeyup = function(e) {keyMap[e.keyCode]=false;}
-window.onkeydown = function(e) {keyMap[e.keyCode]=true;}
+window.onkeydown = function(e) {
+    keyMap[e.keyCode]=true;
+}
+
+function waitForKey(key){
+    alert(key);
+}
 
 playButton.addEventListener('click', function(e){
     playButton.classList.toggle('btn-success');
@@ -75,6 +104,7 @@ function isKeyPressed(key){
     return keyMap[keyCode];
 }
 
+
 chip8.prototype.reset = function() {
     // Program counter
     this.pc = memoryStart;
@@ -106,6 +136,9 @@ chip8.prototype.reset = function() {
     // Sound timer
     this.soundTimer = 0;
 
+    // detect keypress
+    this.isStopped = false;
+
     // for debugging purposes
     this.template = "";
     this.manual = "";
@@ -119,7 +152,6 @@ chip8.prototype.load = function(ROM) {
 
     xhr.onload = function() {
         var program = new Uint8Array(xhr.response);
-        console.log(program);
         for(var i=0;i<program.length;i++){
             self.memory[memoryStart+i] = program[i];
         }
@@ -151,8 +183,6 @@ chip8.prototype.loadSprites = function() {
         this.memory[i] = sprites[i];
         
     }
-    console.log('incoming sprites');
-    console.log(this.memory);
 }
 
 chip8.prototype.runVideo = function() {
@@ -163,11 +193,9 @@ chip8.prototype.runVideo = function() {
         var x = pixel % 64;
         var y = Math.floor(pixel/64);
         if(this.gfx[pixel]==1){
-            console.log(x,y);
             ctx.fillRect(x*videoScale,y*videoScale,videoScale,videoScale);
         }
     }
-    console.log(this.gfx);
 }
 
 chip8.prototype.runGui = function() {
@@ -183,7 +211,7 @@ chip8.prototype.runGui = function() {
         return `<li><strong>${index}</strong> => ${value}</li>`;
     }).join('');
     myIRegister.innerHTML = this.i;
-    myDelayTimer.innerHTML = this.delayTimer;
+    myDelayTimer.innerHTML = this.soundTimer;
     var node = document.createElement('LI');
     node.innerHTML = `<code>${opcode.toString(16)}</code>`;
     myHistory.insertBefore(node, myHistory.firstChild);
@@ -198,10 +226,14 @@ chip8.prototype.runGui = function() {
 }
 
 chip8.prototype.run = function() {
-    console.log('running');
     var self = this;
     if(self.delayTimer>0){
         self.delayTimer--;
+    }
+    if(self.soundTimer>0){
+        self.soundTimer = 0;
+        audio.currentTime = 0;
+        audio.play();
     }
     steps++;
     var opcode = (self.memory[self.pc] << 8 | self.memory[self.pc + 1]);
@@ -211,14 +243,11 @@ chip8.prototype.run = function() {
     var kk = (opcode & 0x00FF);
     var nnn = (opcode & 0x0FFF);
     if(opcode == 0x00E0){
-        console.log("CLS");
     }    
     if(opcode == 0x00EE){
-        console.log("RET");
         self.pc = self.stack[self.sp];
+        self.sp--;
     }
-    console.log((opcode & 0xF000)>>12);
-    console.log('test', ((opcode & 0xF000)>>12));   
     switch ((opcode & 0xF000)>>12){
         case 1:
             self.template = "1nnn";
@@ -235,9 +264,6 @@ chip8.prototype.run = function() {
         case 3:
             self.template = "3xkk";
             self.manual = "Skip next instruction if Vx = kk.";
-                console.log('bep');
-                console.log(self.v[x]);
-                console.log(kk);
             if (self.v[x] == kk){
                 self.pc += 2;
             }
@@ -245,7 +271,7 @@ chip8.prototype.run = function() {
         case 4:
             self.template = "4xkk";
             self.manual = "Skip next instruction if Vx != kk.";
-            if (self.v[x] =! kk){
+            if (self.v[x] != kk){
                 self.pc += 2;
             }
             break;
@@ -260,7 +286,6 @@ chip8.prototype.run = function() {
             self.template = "6xkk";
             self.manual = "Set Vx = kk.";
             self.v[x] = kk;
-            console.log('6');
             break;
         case 7:
             self.template = "7xkk";
@@ -270,45 +295,95 @@ chip8.prototype.run = function() {
         case 8:
             switch (n){
                 case 0:
-                    console.log(n);
+                    self.template = "8xy0";
+                    self.manual = "Set Vx = Vy.";
+                    self.v[x] = self.v[y];
                     break;
                 case 1: 
-                    console.log(n);
+                    self.template = "8xy1";
+                    self.manual = "Set Vx = Vx OR Vy.";
+                    self.v[x] = self.v[x] | self.v[y];
                     break;
                 case 2: 
-                    console.log(n);
+                    self.template = "8xy2";
+                    self.manual = "Set Vx = Vx AND Vy.";
+                    self.v[x] = self.v[x] & self.v[y];
                     break;
                 case 3: 
-                    console.log(n);
+                    self.template = "8xy3";
+                    self.manual = "Set Vx = Vx XOR Vy.";
+                    self.v[x] = self.v[x] ^ self.v[y];
                     break;
                 case 4: 
-                    console.log(n);
+                    self.template = "8xy4";
+                    self.manual = "Set Vx = Vx + Vy, set VF = carry.";
+                    self.v[x] = self.v[x] + self.v[y];
+                    if(self.v[x]>255){
+                        self.v[0xF] = 1;
+                        self.v[x] = self.v[x] % 255;
+                    }
+                    else {
+                        self.v[0xF] = 0;                        
+                    }
                     break;
                 case 5: 
-                    console.log(n);
+                    self.template = "8xy5";
+                    self.manual = "Set Vx = Vx - Vy, set VF = NOT borrow.";
+                    if(self.v[x]>self.v[y]){
+                        self.v[0xF] = 1;
+                        self.v[x] = self.v[x] - self.v[y] % 255;
+                    }
+                    else {
+                        self.v[0xF] = 0;                        
+                    }
                     break;
                 case 6: 
-                    console.log(n);
+                    self.template = "8xy6";
+                    self.manual = "Set Vx = Vx SHR 1.";
+                    if(self.v[x] & 0xF == 1){
+                        self.v[0xF] = 1;                          
+                    }
+                    else {
+                        self.v[0xF] = 0;                        
+                    }
+                    self.v[x] >> 1;
                     break;
                 case 7: 
-                    console.log(n);
+                    self.template = "8xy7";
+                    self.manual = "Set Vx = Vy - Vx, set VF = NOT borrow.";
+                    if(self.v[y]>self.v[x]){
+                        self.v[0xF] = 1;
+                        self.v[x] = self.v[y] - self.v[x] % 255;
+                    }
+                    else {
+                        self.v[0xF] = 0;                        
+                    }
                     break;
                 case 14: 
-                    console.log(n);
+                    self.template = "8xyE";
+                    self.manual = "Set Vx = Vx SHL 1.";
+                    if(self.v[x] & 0xF000 == 1){
+                        self.v[0xF] = 1;                          
+                    }
+                    else {
+                        self.v[0xF] = 0;                        
+                    }
+                    self.v[x]<<1;
                     break;
             }
             break;
         case 9:
-            console.log('Skip');
+            if(self.v[x] != self.v[y]){
+                self.pc+=2;
+            }
             break;
         case 10:
             self.template = "Annn";
             self.manual = "Set I = nnn.";
             self.i = nnn;
-            console.log('A');
             break;
         case 11:
-            console.log('B');
+            self.pc = self.v[0]+nnn;
             break;
         case 12:
             self.template = "Cxkk";
@@ -319,9 +394,6 @@ chip8.prototype.run = function() {
         case 13:
             self.template = "Dxyn";
             self.manual = "Display n-byte sprite starting at memory location I at (Vx, Vy), set VF = collision.";
-            console.log(self.memory);
-            console.log(self.i);
-            console.log(n);
             self.v[0xF]=0;
             for(var yline = 0;yline<n;yline++){
                 var pixel = self.memory[self.i + yline];
@@ -334,13 +406,11 @@ chip8.prototype.run = function() {
                         }
                         else {
                             self.gfx[self.v[x] + xline + ((self.v[y] + yline) * 64)] = 1;
-                            console.log('draw', x + xline , y + yline);
                         }
                     }
                 }
             }
             self.runVideo();
-            console.log('D');
             break;
         case 14:
             self.template = "ExA1";
@@ -348,20 +418,30 @@ chip8.prototype.run = function() {
             if (!isKeyPressed(self.v[x])){
                 self.pc+=2;
             };
-            console.log('E');
             break;
         case 15:
-            console.log('f');
             switch (kk){
                 case 0x07:
                     self.template = "Fx07";
                     self.manual = "Set Vx = delay timer value.";
                     self.v[x] = self.delayTimer;
                     break;
+                case 0x0A:
+                    self.isStopped = true;
+                    waitForKey(keyCodes[x]);
+                    break;
                 case 0x15:
                     self.template = "Fx15";
                     self.manual = "Set delay timer = Vx.";
                     self.delayTimer = self.v[x];
+                    break;
+                case 0x18:
+                    self.template = "Fx15";
+                    self.manual = "Set sound timer = Vx.";
+                    self.soundTimer = self.v[x];
+                    break;
+                case 0x1E:
+                    self.i = self.i + self.v[x];
                     break;
                 case 0x29:
                     self.template = "Fx29";
@@ -381,6 +461,13 @@ chip8.prototype.run = function() {
                     self.memory[self.i + 1] = arr[1];
                     self.memory[self.i + 2] = arr[2];
                     break; 
+                case 0x55:
+                    self.template = "Fx55";
+                    self.manual = "Store registers V0 through Vx in memory starting at location I.";
+                    for(var i=0; i<=x;i++){
+                        self.memory[self.i + i] = self.v[i];
+                    }
+                    break;
                 case 0x65:
                     self.template = "Fx65";
                     self.manual = "Read registers V0 through Vx from memory starting at location I.";
@@ -396,8 +483,12 @@ chip8.prototype.run = function() {
 
 
     }
-    this.runGui();
-    self.pc+=2;
+    if(debug){
+        this.runGui();
+    }
+    if(!self.isStopped){
+        self.pc+=2;
+    }
     if(playing){
         setTimeout(function(){self.run()},runSpeed);
     }
