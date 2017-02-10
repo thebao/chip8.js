@@ -8,11 +8,23 @@
         <div class="container">
             <h1>Chip-8 emulator<small> (<span id="steps">0</span> steps)</small></h1>
             <div class="row">
-                <div class="col-md-2 col-md-offset-5 text-center">
-                    <div id="step-button" class="btn btn-large btn-primary">
-                        Next instruction
-                    </div><br/>
-                    <small>(or press space)</small>
+                <div class="col-md-4 col-md-offset-4 text-center">
+                    <canvas id="video" width="320" height="160" style="border: 1px solid green;"></canvas>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-4 col-md-offset-4 text-center">
+                    <div class="btn-group">
+                        <button id="step-button" class="btn btn-large btn-primary">
+                            Next instruction
+                        </button>
+                        <button id="play-button" class="btn btn-large btn-success">
+                            Play
+                        </button>
+                        <a href="javascript: location.reload()" id="play-button" class="btn btn-large btn-danger">
+                            Reset
+                        </a>
+                    </div>
                 </div>
             </div>
             <div class="row hidden">
@@ -52,6 +64,10 @@
                 <div class="col-sm-2">
                     <h4>I register</h4>
                     <ul id="iregister"></ul>
+                </div>
+                <div class="col-sm-2">
+                    <h4>Delay timer</h4>
+                    <ul id="delaytimer"></ul>
                 </div>
             </div>
         </div>

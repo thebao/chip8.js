@@ -1,5 +1,8 @@
 var memoryStart = 512;
 var steps = 0;
+var playing = false;
+var runSpeed = 50;
+var video = true;
 
 var chip8 = function() {
     this.reset();   
@@ -13,10 +16,17 @@ var myCounter = document.querySelector('#counter');
 var myStack = document.querySelector('#stack');
 var myVRegister = document.querySelector('#vregister');
 var myIRegister = document.querySelector('#iregister');
+var myDelayTimer = document.querySelector('#delaytimer');
 var myHistory = document.querySelector('#history');
 
 var stepButton = document.querySelector('#step-button');
+var playButton = document.querySelector('#play-button');
 var mySteps = document.querySelector('#steps');
+
+var canvas = document.querySelector('#video');
+var ctx = canvas.getContext('2d');
+ctx.fillStyle = "red";
+ctx.fillRect(0,0,64,32);
 
 document.addEventListener('keyup', function(e){
     if(e.code == "Space"){
@@ -26,6 +36,43 @@ document.addEventListener('keyup', function(e){
 stepButton.addEventListener('click', function(){
     chip.run()
 });
+
+var keyMap = [];
+window.onkeyup = function(e) {keyMap[e.keyCode]=false;}
+window.onkeydown = function(e) {keyMap[e.keyCode]=true;}
+
+playButton.addEventListener('click', function(e){
+    playButton.classList.toggle('btn-success');
+    playButton.classList.toggle('btn-warning');
+    playing = !playing;
+    if(playing){
+        playButton.innerHTML = "Pause";
+        chip.run();
+    }
+    else {
+        playButton.innerHTML = "Play";        
+    }
+});
+
+function isKeyPressed(key){
+    var keyCode = 0;
+    switch(key){
+        case 1:
+            keyCode = 97;
+            break;
+        case 4:
+            keyCode = 100;
+            break;
+        case 12:
+            keyCode = 67;
+            break;
+        case 13:
+            keyCode = 68;
+            break;
+        case 0xc:
+    }
+    return keyMap[keyCode];
+}
 
 chip8.prototype.reset = function() {
     // Program counter
@@ -48,6 +95,9 @@ chip8.prototype.reset = function() {
 
     // "I" register
     this.i = 0;
+
+    // GFX
+    this.gfx = new Array(64*32);
 
     // Delay timer
     this.delayTimer = 0;
@@ -104,6 +154,21 @@ chip8.prototype.loadSprites = function() {
     console.log(this.memory);
 }
 
+chip8.prototype.runVideo = function() {
+    ctx.fillStyle = "black";
+    ctx.fillRect(0,0,320,160);
+    ctx.fillStyle = "white";
+    for(var pixel = 0; pixel<this.gfx.length;pixel++){
+        var x = pixel % 64;
+        var y = Math.floor(pixel/64);
+        if(this.gfx[pixel]==1){
+            console.log(x,y);
+            ctx.fillRect(x*5,y*5,5,5);
+        }
+    }
+    console.log(this.gfx);
+}
+
 chip8.prototype.runGui = function() {
     var opcode = (this.memory[this.pc] << 8 | this.memory[this.pc + 1]);
     myInstruction.innerHTML = opcode.toString(16);
@@ -117,6 +182,7 @@ chip8.prototype.runGui = function() {
         return `<li><strong>${index}</strong> => ${value}</li>`;
     }).join('');
     myIRegister.innerHTML = this.i;
+    myDelayTimer.innerHTML = this.delayTimer;
     var node = document.createElement('LI');
     node.innerHTML = `<code>${opcode.toString(16)}</code>`;
     myHistory.insertBefore(node, myHistory.firstChild);
@@ -156,14 +222,14 @@ chip8.prototype.run = function() {
         case 1:
             self.template = "1nnn";
             self.manual = "Jump to location nnn.";
-            self.pc = nnn;
+            self.pc = nnn-2;
             break;
         case 2:
             self.template = "2nnn";
             self.manual = "Call subroutine at nnn.";
             self.sp++;
             self.stack[self.sp] = self.pc;
-            self.pc = nnn;
+            self.pc = nnn-2;
             break;
         case 3:
             self.template = "3xkk";
@@ -245,16 +311,41 @@ chip8.prototype.run = function() {
             break;
         case 12:
             self.template = "Cxkk";
-            self.manual = "Set I = nnn.";
-            console.log(Math.floor(Math.random()*255));
-            console.log('C');
+            self.manual = "Set Vx = random byte AND kk.";
+            var rand = Math.floor(Math.random()*255);
+            self.v[x] = rand & kk;
             break;
         case 13:
             self.template = "Dxyn";
             self.manual = "Display n-byte sprite starting at memory location I at (Vx, Vy), set VF = collision.";
+            console.log(self.memory);
+            console.log(self.i);
+            console.log(n);
+            self.v[0xF]=0;
+            for(var yline = 0;yline<n;yline++){
+                var pixel = self.memory[self.i + yline];
+                for(var xline = 0; xline < 8; xline++){
+                    if((pixel & (0x80 >> xline)) != 0)
+                    {
+                        if(self.gfx[(x + xline + ((y + yline) * 64))] == 1){
+                            self.v[0xF] = 1;      
+                            self.gfx[x + xline + ((y + yline) * 64)] = 0;                           
+                        }
+                        else {
+                            self.gfx[x + xline + ((y + yline) * 64)] = 1;       
+                        }
+                    }
+                }
+            }
+            self.runVideo();
             console.log('D');
             break;
         case 14:
+            self.template = "ExA1";
+            self.manual = "Skip next instruction if key with the value of Vx is not pressed.";
+            if (!isKeyPressed(self.v[x])){
+                self.pc+=2;
+            };
             console.log('E');
             break;
         case 15:
@@ -305,6 +396,9 @@ chip8.prototype.run = function() {
     }
     this.runGui();
     self.pc+=2;
+    if(playing){
+        setTimeout(function(){self.run()},runSpeed);
+    }
 }
 
 var chip = new chip8();
