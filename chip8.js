@@ -5,6 +5,7 @@ var chip8 = function() {
 }
 
 var myInstruction = document.querySelector('#instruction');
+var myMemory = document.querySelector('#memory');
 var myType = document.querySelector('#inst-type');
 var myCounter = document.querySelector('#counter');
 var myStack = document.querySelector('#stack');
@@ -111,12 +112,24 @@ chip8.prototype.runGui = function() {
     var node = document.createElement('LI');
     node.innerHTML = `<code>${opcode.toString(16)}</code>`;
     myHistory.insertBefore(node, myHistory.firstChild);
+    myMemory.innerHTML = '\t'+this.memory.map(function(i,v){
+        if(v%16==0 && v > 0)
+            return(i.toString(16)+'<br/>');
+        else
+            return i.toString(16);
+    }).join('\t');
 }
 
 chip8.prototype.run = function() {
     console.log('running');
     var self = this;
     var opcode = (self.memory[self.pc] << 8 | self.memory[self.pc + 1]);
+    var x = (opcode & 0x0F00) >> 8;
+    var y = (opcode & 0x00F0) >> 4;
+    var n = (opcode & 0x000F);
+    var kk = (opcode & 0x00FF);
+    var nnn = (opcode & 0x0FFF);
+    console.log('kk', kk);
     if(opcode == 0x00E0){
         console.log("CLS");
     }    
@@ -125,7 +138,7 @@ chip8.prototype.run = function() {
         self.pc = self.stack[self.sp];
     }
     console.log((opcode & 0xF000)>>12);
-    console.log('test', ((opcode & 0xF000)>>12));
+    console.log('test', ((opcode & 0xF000)>>12));   
     switch ((opcode & 0xF000)>>12){
         case 1:
             console.log("jump to ", opcode & 0x0FFF);
